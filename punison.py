@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import getopt, hashlib, os, shutil, sys
-import pickle
+import ConfigParser, pickle
 
 class File(object):
 	def __init__(self, path, filename):
@@ -101,20 +101,37 @@ class PUnison(object):
 	def __init__(self):
 		self.local = None
 		self.remote = None
+		self.name = None
 		self._files = []
 
 	def run(self):
 		try:
-			opts, args = getopt.getopt(sys.argv[1:], "", ["local=", "remote=", "help"])
+			opts, args = getopt.getopt(sys.argv[1:], "", ["local=", "remote=", "name=", "help"])
 		except getopt.GetoptError:
 			#printUsage()
 			sys.exit(2)
+
+		for opt, arg in opts:
+			if opt in ("--name"):
+				self.name = arg
+
+		if self.name is not None:
+			config = ConfigParser.SafeConfigParser()
+			config.read(os.path.join(os.environ['HOME'], '.config', 'punison', 'punison.conf'))
+			if config.has_option(self.name, 'local'):
+				self.local = config.get(self.name, 'local', None)
+			if config.has_option(self.name, 'remote'):
+				self.remote = config.get(self.name, 'remote', None)
 
 		for opt, arg in opts:
 			if opt in ("--local"):
 				self.local = arg
 			elif opt in ("--remote"):
 				self.remote = arg
+
+		if self.name is None:
+			print("Parameter --name must be set")
+			sys.exit(2)
 
 		if self.local is None or self.remote is None:
 			print("Both local and remote path must be set")
@@ -142,14 +159,14 @@ class PUnison(object):
 
 	def __loadConfig(self):
 		try:
-			f = open('data.pickle', 'rb')
+			f = open(os.path.join(os.environ['HOME'], '.config', 'punison', self.name + '.pickle'), 'rb')
 			self._files = pickle.load(f)
 			f.close()
 		except:
 			pass
 
 	def __saveConfig(self):
-		f = open('data.pickle', 'wb')
+		f = open(os.path.join(os.environ['HOME'], '.config', 'punison', self.name + '.pickle'), 'wb')
 		pickle.dump(self._files, f, 0)
 		f.close()
 
@@ -168,7 +185,6 @@ class PUnison(object):
 					else:
 						f.updateModified(path, local=False)
 					self._files.append(f)
-
 
 if __name__ == '__main__':
 	p = PUnison()
