@@ -35,13 +35,15 @@ class File(object):
 
 		# Check if deleted
 		if not os.path.exists(os.path.join(localPath, self.path, self.filename)):
-			print("Removed locally")
-			os.remove(os.path.join(remotePath, self.path, self.filename))
+			path = os.path.join(remotePath, self.path, self.filename)
+			print("Removed file %s" % path)
+			os.remove(path)
 			self.removed = True
 			return
 		elif not os.path.exists(os.path.join(remotePath, self.path, self.filename)):
-			print("Removed remote")
-			os.remove(os.path.join(localPath, self.path, self.filename))
+			path = os.path.join(localPath, self.path, self.filename)
+			print("Remove file %s" % path)
+			os.remove(path)
 			self.removed = True
 			return
 
@@ -56,23 +58,22 @@ class File(object):
 
 		# Check remote modification
 		if os.path.getmtime(os.path.join(remotePath, self.path, self.filename)) != self.remoteModified:
-			print("  File is modified remote")
 			self.copyToLocal(localPath, remotePath)
 			self.updateModified(remotePath, local=False)
 
 	def copyToLocal(self, localPath, remotePath):
-		print("  Copy file to local")
 		lpath = os.path.join(localPath, self.path)
 		rpath = os.path.join(remotePath, self.path, self.filename)
+		print("Copy %s to %s" % (rpath, lpath))
 		if not os.path.exists(lpath):
 			os.makedirs(lpath)
 		shutil.copy2(rpath, lpath)
 		self.updateHash(localPath)
 
 	def copyToRemote(self, localPath, remotePath):
-		print("  Copy file to remote")
 		lpath = os.path.join(localPath, self.path, self.filename)
 		rpath = os.path.join(remotePath, self.path)
+		print("Copy %s to %s" % (lpath, rpath))
 		if not os.path.exists(rpath):
 			os.makedirs(rpath)
 		shutil.copy2(lpath, rpath)
