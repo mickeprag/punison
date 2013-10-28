@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import getopt, hashlib, os, shutil, sys
 import pickle
 
