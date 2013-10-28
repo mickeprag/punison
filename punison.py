@@ -24,9 +24,16 @@ class File(object):
 		f.close()
 		return hash.hexdigest()
 
+	def fileExists(self, basepath):
+		return os.path.exists(os.path.join(basepath, self.path, self.filename))
+
 	def updateIfNeeded(self, localPath, remotePath):
 		if self.remoteModified is None:
-			self.copyToRemote(localPath, remotePath)
+			# New file, check if it already exists. If so, consider them equal.
+			if self.fileExists(remotePath):
+				self.updateModified(remotePath, local=False)
+			else:
+				self.copyToRemote(localPath, remotePath)
 			return
 
 		if self.localModified is None:
@@ -34,13 +41,13 @@ class File(object):
 			return
 
 		# Check if deleted
-		if not os.path.exists(os.path.join(localPath, self.path, self.filename)):
+		if not self.fileExists(localPath):
 			path = os.path.join(remotePath, self.path, self.filename)
 			print("Removed file %s" % path)
 			os.remove(path)
 			self.removed = True
 			return
-		elif not os.path.exists(os.path.join(remotePath, self.path, self.filename)):
+		elif not self.fileExists(remotePath):
 			path = os.path.join(localPath, self.path, self.filename)
 			print("Remove file %s" % path)
 			os.remove(path)
