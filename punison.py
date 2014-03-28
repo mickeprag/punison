@@ -86,7 +86,8 @@ class File(object):
 		print("Copy %s to %s" % (lpath, rpath))
 		if not os.path.exists(rpath):
 			os.makedirs(rpath)
-		shutil.copy2(lpath, rpath)
+		if not self.__doCopy(lpath, os.path.join(rpath, self.filename)):
+			return
 		self.updateModified(remotePath, local=False)
 
 	def updateHash(self, basepath):
