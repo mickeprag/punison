@@ -76,7 +76,8 @@ class File(object):
 		print("Copy %s to %s" % (rpath, lpath))
 		if not os.path.exists(lpath):
 			os.makedirs(lpath)
-		shutil.copy2(rpath, lpath)
+		if not self.__doCopy(rpath, os.path.join(lpath, self.filename)):
+			return
 		self.updateHash(localPath)
 
 	def copyToRemote(self, localPath, remotePath):
@@ -98,6 +99,43 @@ class File(object):
 			self.localModified = os.path.getmtime(path)
 		else:
 			self.remoteModified = os.path.getmtime(path)
+
+	def __doCopy(self, src, dest):
+		srcf = open(src, 'rb')
+		destf = open(dest, 'wb')
+		srcSize = os.stat(src).st_size
+
+		curBlockPos = 0
+		blockSize = 16384
+		while True:
+			curBlock = srcf.read(blockSize)
+			curBlockPos += blockSize
+			sys.stdout.write(
+				'\r%s/%s - %s%%\r' % (self.__formatSize(curBlockPos), self.__formatSize(srcSize), str(round(float(curBlockPos)/float(srcSize)*100)))
+			)
+			sys.stdout.flush()
+			if not curBlock:
+				sys.stdout.write('\n')
+				break
+			else:
+				destf.write(curBlock)
+		srcf.close()
+		destf.close()
+		destSize = os.stat(dest).st_size
+		if destSize != srcSize:
+			raise IOError(
+				"New file-size does not match original (src: %s, dest: %s)" % (
+				srcSize, destSize)
+			)
+		return True
+
+	def __formatSize(self, size):
+		suffixes = ['MB', 'KB']
+		suffix = 'bytes'
+		while size > 1024 and len(suffixes) > 0:
+			size = size / 1024
+			suffix = suffixes.pop()
+		return '%i%s' % (size, suffix)
 
 class PUnison(object):
 	def __init__(self):
