@@ -149,6 +149,9 @@ class PUnison(object):
 		for f in self._files:
 			try:
 				f.updateIfNeeded(self.local, self.remote)
+			except KeyboardInterrupt:
+				print("Aborted while copying files!")
+				break
 			except Exception as e:
 				print("Could not copy file %s/%s: %s" % (str(f.path), str(f.filename), str(e)))
 		self._files = [f for f in self._files if not hasattr(f, 'removed') or f.removed == False]
