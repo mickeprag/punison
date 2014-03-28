@@ -43,14 +43,16 @@ class File(object):
 		# Check if deleted
 		if not self.fileExists(localPath):
 			path = os.path.join(remotePath, self.path, self.filename)
-			print("Removed file %s" % path)
-			os.remove(path)
+			print("Remove file %s" % path)
+			if self.fileExists(remotePath):
+				os.remove(path)
 			self.removed = True
 			return
 		elif not self.fileExists(remotePath):
 			path = os.path.join(localPath, self.path, self.filename)
 			print("Remove file %s" % path)
-			os.remove(path)
+			if self.fileExists(localPath):
+				os.remove(path)
 			self.removed = True
 			return
 
