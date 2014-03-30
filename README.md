@@ -12,11 +12,11 @@ usage
 
 punison --name [name] --local [local path] --remote [remote path]
 
---name: This is a unique name for each syncronization. PUnison uses this name to store files copied
---local: The local files. This path must be on the same computer since PUnison will read and hash the file contents
+--name: This is a unique name for each syncronization. PUnison uses this name to store files copied  
+--local: The local files. This path must be on the same computer since PUnison will read and hash the file contents  
 --remote: The path to the remote files. This can be a slow network drive and PUnison will try to keep read and writes to a minimum
 
-example:
+example:  
 punison --name movies --local /home/micke/Documents/movies --remote /mnt/phone/Documents/movies
 
 configuration files
@@ -24,12 +24,14 @@ configuration files
 
 It is possible to skip the local and remote parameter by storing these in a configuration file
 
-example:
+example:  
 Put this in ~/.config/punison/punison.conf:
 
+```
 [movies]
 local = /home/micke/Documents/movies
 remote = /mnt/phone/Documents/movies
+```
 
-You can now run PUnison:
+You can now run PUnison:  
 punison --name movies
