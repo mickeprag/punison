@@ -74,6 +74,10 @@ class File(object):
 		lpath = os.path.join(localPath, self.path)
 		rpath = os.path.join(remotePath, self.path, self.filename)
 		print("Copy %s to %s" % (rpath, lpath))
+		if not os.path.exists(rpath):
+			print("remote file is already removed")
+			self.removed = True
+			return
 		if not os.path.exists(lpath):
 			os.makedirs(lpath)
 		if not self.__doCopy(rpath, os.path.join(lpath, self.filename)):
@@ -84,6 +88,10 @@ class File(object):
 		lpath = os.path.join(localPath, self.path, self.filename)
 		rpath = os.path.join(remotePath, self.path)
 		print("Copy %s to %s" % (lpath, rpath))
+		if not os.path.exists(lpath):
+			print("local file is already removed")
+			self.removed = True
+			return
 		if not os.path.exists(rpath):
 			os.makedirs(rpath)
 		if not self.__doCopy(lpath, os.path.join(rpath, self.filename)):
