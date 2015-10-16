@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import getopt, hashlib, os, shutil, sys, time
+import getopt, hashlib, math, os, shutil, sys, time
 import ConfigParser, pickle
 
 class File(object):
@@ -129,7 +129,7 @@ class File(object):
 		startTime = time.time()
 
 		curBlockPos = 0
-		blockSize = 16384
+		blockSize = int(math.pow(2,17))
 		lastBlockStartTime = startTime
 		percentDone = -1
 		while True:
