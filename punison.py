@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import getopt, hashlib, os, shutil, sys
+import getopt, hashlib, os, shutil, sys, time
 import ConfigParser, pickle
 
 class File(object):
@@ -126,21 +126,39 @@ class File(object):
 			print("Not enough free space on target device. Need %s, have %s" % (self.__formatSize(srcSize+minimumFreeSpace), self.__formatSize(freeSpace)))
 			return False
 		destf = open(dest, 'wb')
+		startTime = time.time()
 
 		curBlockPos = 0
 		blockSize = 16384
+		lastBlockStartTime = startTime
+		percentDone = -1
 		while True:
 			curBlock = srcf.read(blockSize)
 			curBlockPos += blockSize
-			sys.stdout.write(
-				'\r%s/%s - %s%%\r' % (self.__formatSize(curBlockPos), self.__formatSize(srcSize), str(round(float(curBlockPos)/float(srcSize)*100)))
-			)
-			sys.stdout.flush()
 			if not curBlock:
 				sys.stdout.write('\n')
 				break
 			else:
 				destf.write(curBlock)
+			t = time.time()
+			avgSpeed = curBlockPos / (t-startTime)
+			lastBlockSpeed = blockSize / (t-lastBlockStartTime)
+			lastBlockStartTime = time.time()
+			secondsLeft = (srcSize - curBlockPos) / avgSpeed
+			p = round(float(curBlockPos)/float(srcSize)*100)
+			if percentDone != p:
+				percentDone = p
+				sys.stdout.write(
+					'%s/%s - %s%% - %s/s (avg %s/s) %s   \r' % (
+						self.__formatSize(curBlockPos),
+						self.__formatSize(srcSize),
+						str(round(float(curBlockPos)/float(srcSize)*100)),
+						self.__formatSize(lastBlockSpeed, bytes=False),
+						self.__formatSize(avgSpeed, bytes=False),
+						self.__formatTime(secondsLeft)
+					)
+				)
+				sys.stdout.flush()
 		srcf.close()
 		destf.close()
 		destSize = os.stat(dest).st_size
@@ -151,13 +169,29 @@ class File(object):
 			)
 		return True
 
-	def __formatSize(self, size):
-		suffixes = ['MB', 'KB']
-		suffix = 'bytes'
+	def __formatSize(self, size, bytes = True):
+		if bytes:
+			suffixes = ['MB', 'KB']
+			suffix = 'bytes'
+		else:
+			suffixes = ['Mb', 'Kb']
+			suffix = 'bits'
+			size = size * 8
 		while size > 1024 and len(suffixes) > 0:
 			size = size / 1024
 			suffix = suffixes.pop()
 		return '%i%s' % (size, suffix)
+
+	def __formatTime(self, seconds):
+		if seconds < 60:
+			return '%i' % seconds
+		minutes = seconds // 60
+		seconds = seconds % 60
+		if minutes < 60:
+			return '%02i:%02i' % (minutes, seconds)
+		hours = minutes // 60
+		minutes = minutes % 60
+		return '%02i:%02i:%02i' % (hours, minutes, seconds)
 
 class PUnison(object):
 	def __init__(self):
