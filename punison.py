@@ -27,17 +27,17 @@ class File(object):
 	def fileExists(self, basepath):
 		return os.path.exists(os.path.join(basepath, self.path, self.filename))
 
-	def updateIfNeeded(self, localPath, remotePath):
+	def updateIfNeeded(self, localPath, remotePath, minimumFreeSpace):
 		if self.remoteModified is None:
 			# New file, check if it already exists. If so, consider them equal.
 			if self.fileExists(remotePath):
 				self.updateModified(remotePath, local=False)
 			else:
-				self.copyToRemote(localPath, remotePath)
+				self.copyToRemote(localPath, remotePath, minimumFreeSpace)
 			return
 
 		if self.localModified is None:
-			self.copyToLocal(localPath, remotePath)
+			self.copyToLocal(localPath, remotePath, minimumFreeSpace)
 			return
 
 		# Check if deleted
@@ -60,17 +60,17 @@ class File(object):
 		if os.path.getmtime(os.path.join(localPath, self.path, self.filename)) != self.localModified:
 			hash = self.calculateHash(localPath)
 			if self.hash != hash:
-				self.copyToRemote(localPath, remotePath)
+				self.copyToRemote(localPath, remotePath, minimumFreeSpace)
 				self.hash = hash
 			# Always update modified so we do not need to rehash it next time
 			self.updateModified(localPath, local=True)
 
 		# Check remote modification
 		if os.path.getmtime(os.path.join(remotePath, self.path, self.filename)) != self.remoteModified:
-			self.copyToLocal(localPath, remotePath)
+			self.copyToLocal(localPath, remotePath, minimumFreeSpace)
 			self.updateModified(remotePath, local=False)
 
-	def copyToLocal(self, localPath, remotePath):
+	def copyToLocal(self, localPath, remotePath, minimumFreeSpace):
 		lpath = os.path.join(localPath, self.path)
 		rpath = os.path.join(remotePath, self.path, self.filename)
 		print("Copy %s to %s" % (rpath, lpath))
@@ -80,11 +80,11 @@ class File(object):
 			return
 		if not os.path.exists(lpath):
 			os.makedirs(lpath)
-		if not self.__doCopy(rpath, os.path.join(lpath, self.filename)):
+		if not self.__doCopy(rpath, os.path.join(lpath, self.filename), minimumFreeSpace):
 			return
 		self.updateHash(localPath)
 
-	def copyToRemote(self, localPath, remotePath):
+	def copyToRemote(self, localPath, remotePath, minimumFreeSpace):
 		lpath = os.path.join(localPath, self.path, self.filename)
 		rpath = os.path.join(remotePath, self.path)
 		print("Copy %s to %s" % (lpath, rpath))
@@ -94,7 +94,7 @@ class File(object):
 			return
 		if not os.path.exists(rpath):
 			os.makedirs(rpath)
-		if not self.__doCopy(lpath, os.path.join(rpath, self.filename)):
+		if not self.__doCopy(lpath, os.path.join(rpath, self.filename), minimumFreeSpace):
 			return
 		self.updateModified(remotePath, local=False)
 
@@ -109,10 +109,16 @@ class File(object):
 		else:
 			self.remoteModified = os.path.getmtime(path)
 
-	def __doCopy(self, src, dest):
+	def __doCopy(self, src, dest, minimumFreeSpace):
+		s = os.statvfs(os.path.dirname(dest))
+		freeSpace = s.f_frsize * s.f_bavail
 		srcf = open(src, 'rb')
-		destf = open(dest, 'wb')
 		srcSize = os.stat(src).st_size
+		minimumFreeSpace = minimumFreeSpace * 1024 * 1024 # Convert to MB
+		if freeSpace < (srcSize + minimumFreeSpace):
+			print("Not enough free space on target device. Need %s, have %s" % (self.__formatSize(srcSize+minimumFreeSpace), self.__formatSize(freeSpace)))
+			return False
+		destf = open(dest, 'wb')
 
 		curBlockPos = 0
 		blockSize = 16384
@@ -150,14 +156,15 @@ class PUnison(object):
 	def __init__(self):
 		self.local = None
 		self.remote = None
+		self.minimumFreeSpace = 0
 		self.name = None
 		self._files = []
 
 	def run(self):
 		try:
-			opts, args = getopt.getopt(sys.argv[1:], "", ["local=", "remote=", "name=", "help"])
-		except getopt.GetoptError:
-			#printUsage()
+			opts, args = getopt.getopt(sys.argv[1:], "", ["local=", "remote=", "name=", "minimumFreeSpace=", "help"])
+		except getopt.GetoptError as e:
+			print(e)
 			sys.exit(2)
 
 		for opt, arg in opts:
@@ -171,12 +178,16 @@ class PUnison(object):
 				self.local = config.get(self.name, 'local', None)
 			if config.has_option(self.name, 'remote'):
 				self.remote = config.get(self.name, 'remote', None)
+			if config.has_option(self.name, 'minimumFreeSpace'):
+				self.minimumFreeSpace = int(config.get(self.name, 'minimumFreeSpace', 0))
 
 		for opt, arg in opts:
 			if opt in ("--local"):
 				self.local = arg
 			elif opt in ("--remote"):
 				self.remote = arg
+			elif opt in ("--minimumFreeSpace"):
+				self.minimumFreeSpace = int(arg)
 
 		if self.name is None:
 			print("Parameter --name must be set")
@@ -195,7 +206,7 @@ class PUnison(object):
 	def __copyFiles(self):
 		for f in self._files:
 			try:
-				f.updateIfNeeded(self.local, self.remote)
+				f.updateIfNeeded(self.local, self.remote, minimumFreeSpace=self.minimumFreeSpace)
 			except KeyboardInterrupt:
 				print("Aborted while copying files!")
 				break
