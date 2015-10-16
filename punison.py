@@ -11,6 +11,7 @@ class File(object):
 		self.remoteModified = None
 		self.hash = None
 		self.removed = False
+		self.partial = False
 
 	def calculateHash(self, basepath):
 		path = os.path.join(basepath, self.path, self.filename)
@@ -31,9 +32,11 @@ class File(object):
 		if self.remoteModified is None:
 			# New file, check if it already exists. If so, consider them equal.
 			if self.fileExists(remotePath):
-				self.updateModified(remotePath, local=False)
-			else:
-				self.copyToRemote(localPath, remotePath, minimumFreeSpace)
+				if self.partial == False:
+					self.updateModified(remotePath, local=False)
+					return
+				print("File exists on both places but is marked partial. Copy again")
+			self.copyToRemote(localPath, remotePath, minimumFreeSpace)
 			return
 
 		if self.localModified is None:
@@ -71,6 +74,7 @@ class File(object):
 			self.updateModified(remotePath, local=False)
 
 	def copyToLocal(self, localPath, remotePath, minimumFreeSpace):
+		self.partial = True
 		lpath = os.path.join(localPath, self.path)
 		rpath = os.path.join(remotePath, self.path, self.filename)
 		print("Copy %s to %s" % (rpath, lpath))
@@ -83,6 +87,7 @@ class File(object):
 		if not self.__doCopy(rpath, os.path.join(lpath, self.filename), minimumFreeSpace):
 			return
 		self.updateHash(localPath)
+		self.partial = False
 
 	def copyToRemote(self, localPath, remotePath, minimumFreeSpace):
 		lpath = os.path.join(localPath, self.path, self.filename)
@@ -94,9 +99,11 @@ class File(object):
 			return
 		if not os.path.exists(rpath):
 			os.makedirs(rpath)
+		self.partial = True
 		if not self.__doCopy(lpath, os.path.join(rpath, self.filename), minimumFreeSpace):
 			return
 		self.updateModified(remotePath, local=False)
+		self.partial = False
 
 	def updateHash(self, basepath):
 		self.hash = self.calculateHash(basepath)
@@ -212,6 +219,7 @@ class PUnison(object):
 				break
 			except Exception as e:
 				print("Could not copy file %s/%s: %s" % (str(f.path), str(f.filename), str(e)))
+				break
 		self._files = [f for f in self._files if not hasattr(f, 'removed') or f.removed == False]
 
 	def __findFile(self, path, filename):
